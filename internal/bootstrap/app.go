@@ -1,10 +1,10 @@
 package bootstrap
 
 import (
-	repo "basesource/internal/repositories/pg-gorm"
-	"basesource/pkg/core/configloader"
-	"basesource/pkg/core/db"
 	"fmt"
+	repo "payment/internal/repositories/pg-gorm"
+	"payment/pkg/core/configloader"
+	"payment/pkg/core/db"
 )
 
 type App struct {

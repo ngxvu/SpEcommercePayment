@@ -1,13 +1,13 @@
 package jwt
 
 import (
-	model "basesource/internal/models"
-	"basesource/pkg/core/configloader"
-	"basesource/pkg/core/logger"
-	"basesource/pkg/http/utils"
-	"basesource/pkg/http/utils/app_errors"
 	"context"
 	"github.com/golang-jwt/jwt/v4"
+	model "payment/internal/models"
+	"payment/pkg/core/configloader"
+	"payment/pkg/core/logger"
+	"payment/pkg/http/utils"
+	"payment/pkg/http/utils/app_errors"
 	"strconv"
 	"time"
 )

@@ -1,4 +1,4 @@
-module basesource
+module payment
 
 go 1.23.6
 

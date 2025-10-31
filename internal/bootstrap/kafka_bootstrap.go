@@ -1,10 +1,10 @@
 package bootstrap
 
 import (
-	"basesource/pkg/core/configloader"
-	"basesource/pkg/core/kafka"
 	"context"
 	"log"
+	"payment/pkg/core/configloader"
+	"payment/pkg/core/kafka"
 )
 
 type KafkaApp struct {

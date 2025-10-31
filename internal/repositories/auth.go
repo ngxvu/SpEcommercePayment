@@ -1,11 +1,11 @@
 package repositories
 
 import (
-	model "basesource/internal/models"
-	pgGorm "basesource/internal/repositories/pg-gorm"
 	"context"
 	"github.com/pkg/errors"
 	"gorm.io/gorm"
+	model "payment/internal/models"
+	pgGorm "payment/internal/repositories/pg-gorm"
 )
 
 type AuthUserRepository struct {
