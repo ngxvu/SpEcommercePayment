@@ -5,12 +5,22 @@ import (
 	"payment/pkg/http/utils"
 )
 
+type PaymentStatus string
+
+const (
+	PaymentPending    PaymentStatus = "PENDING"
+	PaymentAuthorized PaymentStatus = "AUTHORIZED"
+	PaymentDeclined   PaymentStatus = "DECLINED"
+)
+
 type Payment struct {
 	BaseModel
-	OrderID    uuid.UUID `gorm:"type:uuid;index"`
-	CustomerID uuid.UUID `gorm:"type:uuid;index"`
-	Amount     float64   `gorm:"type:numeric(10,2)"`
-	Status     string    `gorm:"type:varchar(50);index"`
+	OrderID        string        `gorm:"index"`
+	IdempotencyKey string        `gorm:"uniqueIndex:uniq_idem_key"`
+	Amount         int64         `gorm:"not null"`
+	Status         PaymentStatus `gorm:"type:text;index;not null"`
+	Attempts       int           `gorm:"default:0"`
+	LastError      string        `gorm:"type:text"`
 }
 
 func (Payment) TableName() string {
