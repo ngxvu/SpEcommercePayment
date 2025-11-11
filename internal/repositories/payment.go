@@ -2,7 +2,9 @@ package repositories
 
 import (
 	"context"
+	"errors"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 	model "payment/internal/models"
 	pgGorm "payment/internal/repositories/pg-gorm"
 	"payment/pkg/http/utils"
@@ -17,38 +19,64 @@ func NewPaymentRepository(newPgRepo pgGorm.PGInterface) *PaymentRepository {
 }
 
 type PaymentRepoInterface interface {
-	CreatePayment(ctx context.Context, tx *gorm.DB, PaymentRequest *model.CreatePaymentRequest) (*model.CreatePaymentResponse, error)
+	CreateOrGetPayment(ctx context.Context, req *model.CreatePaymentRequest) (*model.Payment, bool, error)
+	UpdateStatus(ctx context.Context, paymentID string, status model.PaymentStatus, lastErr string) error
 }
 
-func (a *PaymentRepository) CreatePayment(ctx context.Context, tx *gorm.DB, paymentRequest *model.CreatePaymentRequest) (*model.CreatePaymentResponse, error) {
+func (r *PaymentRepository) CreateOrGetPayment(ctx context.Context, req *model.CreatePaymentRequest) (*model.Payment, bool, error) {
+	tx, cancel := r.db.DBWithTimeout(ctx)
+	defer cancel()
 
-	var cancel context.CancelFunc
-	if tx == nil {
-		tx, cancel = a.db.DBWithTimeout(ctx)
-		defer cancel()
+	p := &model.Payment{
+		OrderID:        req.OrderID.String(),
+		IdempotencyKey: req.IdempotencyKey,
+		Amount:         req.Amount,
+		Status:         model.PaymentPending,
 	}
 
-	paymentRecord := &model.Payment{
-		OrderID:    paymentRequest.OrderID,
-		CustomerID: paymentRequest.CustomerID,
-		Amount:     paymentRequest.Amount,
-		Status:     paymentRequest.Status,
+	// Try insert; do nothing on conflict (idempotency key)
+	res := tx.Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "idempotency_key"}},
+		DoNothing: true,
+	}).Create(p)
+
+	if res.Error != nil {
+		return nil, false, res.Error
 	}
 
-	if err := tx.Create(paymentRecord).Error; err != nil {
-		return nil, err
+	created := res.RowsAffected == 1
+	if !created {
+		// Fetch existing
+		var existing model.Payment
+		if err := tx.Where("idempotency_key = ?", req.IdempotencyKey).First(&existing).Error; err != nil {
+			return nil, false, err
+		}
+		// Validate consistency
+		if existing.OrderID != req.OrderID.String() || existing.Amount != req.Amount {
+			return nil, false, errors.New("idempotency key conflict: payload mismatch")
+		}
+		return &existing, false, nil
 	}
 
-	response := &model.CreatePaymentResponse{
-		Meta: utils.NewMetaData(ctx),
-		Data: model.CreatePaymentResponseData{
-			PaymentID:  paymentRecord.ID,
-			OrderID:    paymentRecord.OrderID,
-			CustomerID: paymentRecord.CustomerID,
-			Amount:     paymentRecord.Amount,
-			Status:     paymentRecord.Status,
-		},
+	return p, true, nil
+}
+
+func (r *PaymentRepository) UpdateStatus(ctx context.Context, paymentID string, status model.PaymentStatus, lastErr string) error {
+	tx, cancel := r.db.DBWithTimeout(ctx)
+	defer cancel()
+
+	update := map[string]interface{}{
+		"status": status,
+	}
+	if lastErr != "" {
+		update["last_error"] = lastErr
+		update["attempts"] = gorm.Expr("attempts + 1")
 	}
 
-	return response, nil
+	return tx.Model(&model.Payment{}).Where("id = ?", paymentID).Updates(update).Error
+}
+
+// Optional: build response helper
+func BuildCreateResponse(ctx context.Context, p *model.Payment) *model.CreatePaymentResponse {
+	return model.NewCreatePaymentResponse(p, utils.NewMetaData(ctx))
 }

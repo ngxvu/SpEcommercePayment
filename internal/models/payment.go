@@ -28,21 +28,34 @@ func (Payment) TableName() string {
 }
 
 type CreatePaymentRequest struct {
-	OrderID    uuid.UUID `json:"order_id" binding:"required"`
-	CustomerID uuid.UUID `json:"customer_id" binding:"required"`
-	Amount     float64   `json:"amount" binding:"required"`
-	Status     string    `json:"status" binding:"required"`
+	OrderID        uuid.UUID `json:"order_id" binding:"required"`
+	CustomerID     uuid.UUID `json:"customer_id" binding:"required"`
+	IdempotencyKey string    `json:"idempotency_key" binding:"required"`
+	Amount         int64     `json:"amount" binding:"required"`
 }
 
 type CreatePaymentResponseData struct {
-	PaymentID  uuid.UUID `json:"payment_id"`
-	OrderID    uuid.UUID `json:"order_id"`
-	CustomerID uuid.UUID `json:"customer_id"`
-	Amount     float64   `json:"amount"`
-	Status     string    `json:"status"`
+	PaymentID      uuid.UUID `json:"payment_id"`
+	OrderID        string    `json:"order_id"`
+	IdempotencyKey string    `json:"idempotency_key"`
+	Amount         int64     `json:"amount"`
+	Status         string    `json:"status"`
 }
 
 type CreatePaymentResponse struct {
 	Meta *utils.MetaData           `json:"meta"`
 	Data CreatePaymentResponseData `json:"data"`
+}
+
+func NewCreatePaymentResponse(p *Payment, md *utils.MetaData) *CreatePaymentResponse {
+	return &CreatePaymentResponse{
+		Meta: md,
+		Data: CreatePaymentResponseData{
+			PaymentID:      p.ID,
+			OrderID:        p.OrderID,
+			IdempotencyKey: p.IdempotencyKey,
+			Amount:         p.Amount,
+			Status:         string(p.Status),
+		},
+	}
 }

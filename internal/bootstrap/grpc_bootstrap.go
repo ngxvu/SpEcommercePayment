@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"payment/internal/grpc/handlers"
 	"payment/internal/grpc/server"
+	"payment/internal/repositories"
 	"payment/internal/services"
 	"strconv"
 )
@@ -24,7 +25,9 @@ func StartGRPC(app *App) (*server.GRPCServer, error) {
 	httpAddr := fmt.Sprintf(":%d", httpPort)
 
 	newPgRepo := app.PGRepo
-	paymentService := services.NewPaymentService(newPgRepo)
+
+	paymentRepo := repositories.NewPaymentRepository(newPgRepo)
+	paymentService := services.NewPaymentService(paymentRepo)
 	handler := handlers.NewPaymentHandler(paymentService)
 
 	grpcServer := server.NewGRPCServer(handler, grpcAddr, httpAddr)
