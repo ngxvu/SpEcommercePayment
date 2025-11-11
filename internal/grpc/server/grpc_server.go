@@ -3,15 +3,11 @@ package server
 import (
 	"context"
 	"fmt"
+	"google.golang.org/grpc"
 	"log"
 	"net"
 	"net/http"
-
-	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
-
-	pb "payment/pkg/proto"
+	pb "payment/pkg/proto/paymentpb"
 )
 
 type GRPCServer struct {
@@ -22,9 +18,9 @@ type GRPCServer struct {
 	lis        net.Listener
 }
 
-func NewGRPCServer(handler pb.OrderServiceServer, grpcAddr, httpAddr string) *GRPCServer {
+func NewGRPCServer(handler pb.PaymentServiceServer, grpcAddr, httpAddr string) *GRPCServer {
 	s := grpc.NewServer()
-	pb.RegisterOrderServiceServer(s, handler)
+	pb.RegisterPaymentServiceServer(s, handler)
 	return &GRPCServer{
 		server:   s,
 		grpcAddr: grpcAddr,
@@ -50,28 +46,6 @@ func (s *GRPCServer) Run(ctx context.Context) error {
 		}
 	}()
 
-	// setup grpc-gateway
-	gwMux := runtime.NewServeMux()
-	dialOpts := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
-	if err := pb.RegisterOrderServiceHandlerFromEndpoint(ctx, gwMux, s.grpcAddr, dialOpts); err != nil {
-		// stop gRPC server if gateway registration fails
-		s.server.GracefulStop()
-		return err
-	}
-
-	s.httpServer = &http.Server{
-		Addr:    s.httpAddr,
-		Handler: gwMux,
-	}
-
-	httpErrCh := make(chan error, 1)
-	go func() {
-		log.Printf("HTTP gateway listening on %s", s.httpAddr)
-		if err := s.httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			httpErrCh <- err
-		}
-	}()
-
 	// wait for cancel or server error
 	select {
 	case <-ctx.Done():
@@ -82,8 +56,6 @@ func (s *GRPCServer) Run(ctx context.Context) error {
 		return ctx.Err()
 	case err := <-grpcErrCh:
 		return fmt.Errorf("gRPC server error: %w", err)
-	case err := <-httpErrCh:
-		return fmt.Errorf("HTTP gateway error: %w", err)
 	}
 }
 

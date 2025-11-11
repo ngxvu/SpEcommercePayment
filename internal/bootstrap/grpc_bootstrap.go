@@ -3,11 +3,10 @@ package bootstrap
 import (
 	"context"
 	"fmt"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
+	"payment/internal/grpc/handlers"
 	"payment/internal/grpc/server"
+	"payment/internal/services"
 	"strconv"
-	"time"
 )
 
 func StartGRPC(app *App) (*server.GRPCServer, error) {
@@ -25,9 +24,8 @@ func StartGRPC(app *App) (*server.GRPCServer, error) {
 	httpAddr := fmt.Sprintf(":%d", httpPort)
 
 	newPgRepo := app.PGRepo
-	orderRepo := repo.NewOrderRepository(newPgRepo)
-	orderService := services.NewOrderService(orderRepo, newPgRepo, paymentClient)
-	handler := handlers.NewOrderHandler(*orderService)
+	paymentService := services.NewPaymentService(newPgRepo)
+	handler := handlers.NewPaymentHandler(paymentService)
 
 	grpcServer := server.NewGRPCServer(handler, grpcAddr, httpAddr)
 
