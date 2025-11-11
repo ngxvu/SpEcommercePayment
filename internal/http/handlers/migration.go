@@ -40,7 +40,7 @@ func (m *MigrationHandler) BaseMigratePublic(ctx *gin.Context, tx *gorm.DB) erro
 	}
 
 	models := []interface{}{
-		&model.User{},
+		&model.Payment{},
 	}
 
 	tx.Config.NamingStrategy = schema.NamingStrategy{

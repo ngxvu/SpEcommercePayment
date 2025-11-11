@@ -1,17 +1,43 @@
 package bootstrap
 
-//import (
-//	"base-source/internal/grpc/handlers"
-//	"base-source/internal/grpc/server"
-//	"base-source/internal/services"
-//)
-//
-//func StartGRPC() {
-//	service := services.NewOrderService()
-//	handler := handlers.NewOrderHandler(service)
-//	grpcServer := server.New(handler)
-//
-//	if err := grpcServer.Run(50051); err != nil {
-//		panic(err)
-//	}
-//}
+import (
+	"context"
+	"fmt"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+	"payment/internal/grpc/server"
+	"strconv"
+	"time"
+)
+
+func StartGRPC(app *App) (*server.GRPCServer, error) {
+
+	grpcPort, err := strconv.Atoi(app.Config.GRPCPort)
+	if err != nil || grpcPort == 0 {
+		grpcPort = 50052
+	}
+	httpPort, err := strconv.Atoi(app.Config.HTTPPort)
+	if err != nil || httpPort == 0 {
+		httpPort = 8081
+	}
+
+	grpcAddr := fmt.Sprintf(":%d", grpcPort)
+	httpAddr := fmt.Sprintf(":%d", httpPort)
+
+	newPgRepo := app.PGRepo
+	orderRepo := repo.NewOrderRepository(newPgRepo)
+	orderService := services.NewOrderService(orderRepo, newPgRepo, paymentClient)
+	handler := handlers.NewOrderHandler(*orderService)
+
+	grpcServer := server.NewGRPCServer(handler, grpcAddr, httpAddr)
+
+	ctx := context.Background()
+
+	go func() {
+		if err := grpcServer.Run(ctx); err != nil {
+			panic(err)
+		}
+	}()
+
+	return grpcServer, nil
+}

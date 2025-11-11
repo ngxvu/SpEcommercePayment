@@ -1,17 +1,19 @@
 package main
 
 import (
-	"fmt"
+	"context"
 	limit "github.com/aviddiviner/gin-limit"
 	"github.com/gin-gonic/gin"
 	"log"
-	"net/http"
+	"os"
+	"os/signal"
 	"payment/internal/bootstrap"
 	"payment/internal/http/routes"
-	"payment/pkg/core/configloader"
 	"payment/pkg/core/logger"
 	"payment/pkg/http/middlewares"
 	"payment/pkg/http/utils"
+	"syscall"
+	"time"
 )
 
 func main() {
@@ -23,10 +25,6 @@ func main() {
 		logger.LogError(logger.WithTag("Backend|Main"), err, "failed to initialize application")
 		return
 	}
-
-	// Initialize Kafka
-	//kafkaApp := bootstrap.InitializeKafka()
-	//defer kafkaApp.Producer.Writer.Close()
 
 	logger.SetupLogger()
 
@@ -41,19 +39,37 @@ func main() {
 	}
 
 	routes.NewHTTPServer(router, configCors, app)
-	startServer(router, app.Config)
-}
 
-func startServer(router http.Handler, config *configloader.Config) {
+	httpSrv, httpErrCh := bootstrap.StartServer(router, app.Config)
 
-	serverPort := fmt.Sprintf(":%s", config.ServerPort)
-	s := &http.Server{
-		Addr:    serverPort,
-		Handler: router,
+	go func() {
+		if err := <-httpErrCh; err != nil {
+			log.Fatalf("http server error: %v", err)
+		}
+	}()
+
+	grpcSrv, err := bootstrap.StartGRPC(app)
+	if err != nil {
+		log.Fatalf("failed to start grpc: %v", err)
 	}
-	log.Println("Server started on port", serverPort)
-	if err := s.ListenAndServe(); err != nil {
-		_ = fmt.Errorf("failed to start server on port %s: %w", serverPort, err)
-		panic(err)
+
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	<-ctx.Done()
+
+	log.Println("shutting down...")
+
+	// Stop gRPC gracefully (safe nil-check)
+	if grpcSrv != nil {
+		grpcSrv.Stop()
+	}
+
+	// Shutdown HTTP server with timeout
+	if httpSrv != nil {
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		if err := httpSrv.Shutdown(shutdownCtx); err != nil {
+			log.Printf("http shutdown error: %v", err)
+		}
 	}
 }
