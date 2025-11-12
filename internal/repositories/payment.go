@@ -23,9 +23,14 @@ type PaymentRepoInterface interface {
 	UpdateStatus(ctx context.Context, paymentID string, status model.PaymentStatus, lastErr string) error
 }
 
-func (r *PaymentRepository) CreateOrGetPayment(ctx context.Context, req *model.CreatePaymentRequest) (*model.Payment, bool, error) {
+func (r *PaymentRepository) CreateOrGetPayment(
+	ctx context.Context,
+	req *model.CreatePaymentRequest) (*model.Payment, bool, error) {
+
 	tx, cancel := r.db.DBWithTimeout(ctx)
-	defer cancel()
+	if cancel != nil {
+		defer cancel()
+	}
 
 	p := &model.Payment{
 		OrderID:        req.OrderID.String(),
