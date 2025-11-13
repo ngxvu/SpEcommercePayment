@@ -44,8 +44,7 @@ func (s *PaymentService) Process(ctx context.Context, req *pb.PayRequest) (*pb.P
 	}
 
 	createReq := &model.CreatePaymentRequest{
-		OrderID:        parseUUID(req.OrderId),
-		CustomerID:     parseUUID(req.CustomerId),
+		OrderID:        req.OrderId,
 		IdempotencyKey: req.EventId,
 		Amount:         int64(req.Amount),
 	}

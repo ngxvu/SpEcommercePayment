@@ -8,9 +8,12 @@ import (
 type PaymentStatus string
 
 const (
-	PaymentPending    PaymentStatus = "PENDING"
+	// PaymentPending describes a payment that is created but not yet processed
+	PaymentPending PaymentStatus = "PENDING"
+	// PaymentAuthorized describes a payment that has been successfully authorized
 	PaymentAuthorized PaymentStatus = "AUTHORIZED"
-	PaymentDeclined   PaymentStatus = "DECLINED"
+	// PaymentDeclined describes a payment that has been declined
+	PaymentDeclined PaymentStatus = "DECLINED"
 )
 
 type Payment struct {
@@ -28,10 +31,9 @@ func (Payment) TableName() string {
 }
 
 type CreatePaymentRequest struct {
-	OrderID        uuid.UUID `json:"order_id" binding:"required"`
-	CustomerID     uuid.UUID `json:"customer_id" binding:"required"`
-	IdempotencyKey string    `json:"idempotency_key" binding:"required"`
-	Amount         int64     `json:"amount" binding:"required"`
+	OrderID        string `json:"order_id" binding:"required"`
+	IdempotencyKey string `json:"idempotency_key" binding:"required"`
+	Amount         int64  `json:"amount" binding:"required"`
 }
 
 type CreatePaymentResponseData struct {

@@ -18,10 +18,12 @@ func NewPaymentHandler(s services.PaymentProcessor) *PaymentHandler {
 }
 
 func (h *PaymentHandler) Pay(ctx context.Context, req *pb.PayRequest) (*pb.PayResponse, error) {
+
 	// validate request minimally
 	if req == nil {
 		return nil, status.Errorf(codes.InvalidArgument, "request is nil")
 	}
+
 	// call business logic
 	resp, err := h.svc.Process(ctx, req)
 	if err != nil {

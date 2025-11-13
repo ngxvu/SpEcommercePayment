@@ -25,7 +25,8 @@ type PaymentRepoInterface interface {
 
 func (r *PaymentRepository) CreateOrGetPayment(
 	ctx context.Context,
-	req *model.CreatePaymentRequest) (*model.Payment, bool, error) {
+	req *model.CreatePaymentRequest) (
+	*model.Payment, bool, error) {
 
 	tx, cancel := r.db.DBWithTimeout(ctx)
 	if cancel != nil {
@@ -33,7 +34,7 @@ func (r *PaymentRepository) CreateOrGetPayment(
 	}
 
 	p := &model.Payment{
-		OrderID:        req.OrderID.String(),
+		OrderID:        req.OrderID,
 		IdempotencyKey: req.IdempotencyKey,
 		Amount:         req.Amount,
 		Status:         model.PaymentPending,
@@ -57,8 +58,9 @@ func (r *PaymentRepository) CreateOrGetPayment(
 			return nil, false, err
 		}
 		// Validate consistency
-		if existing.OrderID != req.OrderID.String() || existing.Amount != req.Amount {
-			return nil, false, errors.New("idempotency key conflict: payload mismatch")
+		if existing.OrderID != req.OrderID || existing.Amount != req.Amount {
+			err := errors.New("payment data mismatch for existing idempotency key")
+			return nil, false, err
 		}
 		return &existing, false, nil
 	}
