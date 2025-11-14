@@ -46,7 +46,7 @@ func (s *PaymentService) Process(ctx context.Context, req *pb.PayRequest) (*pb.P
 	createReq := &model.CreatePaymentRequest{
 		OrderID:        req.OrderId,
 		IdempotencyKey: req.EventId,
-		Amount:         int64(req.Amount),
+		Amount:         req.Amount,
 	}
 
 	payment, created, err := s.repo.CreateOrGetPayment(ctx, createReq)
