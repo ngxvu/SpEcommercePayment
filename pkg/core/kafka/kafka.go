@@ -2,8 +2,14 @@ package kafka
 
 import (
 	"github.com/segmentio/kafka-go"
+	"payment/pkg/core/kafka/payment"
 	"strings"
 )
+
+type App struct {
+	Producer *payment.Producer
+	Consumer *Consumer
+}
 
 func NewWriter(brokers, topic string) *kafka.Writer {
 	return &kafka.Writer{

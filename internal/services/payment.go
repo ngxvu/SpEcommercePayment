@@ -2,8 +2,10 @@ package services
 
 import (
 	"context"
+	"encoding/json"
 	model "payment/internal/models"
 	"payment/internal/repositories"
+	"payment/pkg/core/kafka/payment"
 	"payment/pkg/core/logger"
 	"payment/pkg/http/utils/app_errors"
 	pb "payment/pkg/proto/paymentpb"
@@ -15,11 +17,12 @@ type PaymentProcessor interface {
 }
 
 type PaymentService struct {
-	repo repositories.PaymentRepoInterface
+	repo     repositories.PaymentRepoInterface
+	producer payment.Producer
 }
 
-func NewPaymentService(repo repositories.PaymentRepoInterface) *PaymentService {
-	return &PaymentService{repo: repo}
+func NewPaymentService(repo repositories.PaymentRepoInterface, producer payment.Producer) *PaymentService {
+	return &PaymentService{repo: repo, producer: producer}
 }
 
 func (s *PaymentService) Process(ctx context.Context, req *pb.PayRequest) (*pb.PayResponse, error) {
@@ -79,11 +82,31 @@ func (s *PaymentService) Process(ctx context.Context, req *pb.PayRequest) (*pb.P
 		}
 
 		// Fake gateway success logic (có thể thay bằng gọi thật)
+		// This Fake gateway success using for replacing real payment gateway integration
 		gatewaySuccess := true
 
 		if gatewaySuccess {
 			_ = s.repo.UpdateStatus(ctx, payment.ID.String(), model.PaymentAuthorized, "")
 			payment.Status = model.PaymentAuthorized
+
+			evt := model.PaymentEvent{
+				PaymentID:      payment.ID.String(),
+				OrderID:        payment.OrderID,
+				IdempotencyKey: payment.IdempotencyKey,
+				Amount:         payment.Amount,
+				Status:         string(payment.Status),
+			}
+
+			payload, err := json.Marshal(evt)
+			if err != nil {
+				return nil, err
+			}
+
+			if err = s.producer.SendMessage(ctx, payment.ID.String(), string(payload)); err != nil {
+				log.Printf("failed to send payment event to kafka: %v", err)
+				return nil, err
+			}
+
 		} else {
 			_ = s.repo.UpdateStatus(ctx, payment.ID.String(), model.PaymentDeclined, "gateway fail")
 			payment.Status = model.PaymentDeclined

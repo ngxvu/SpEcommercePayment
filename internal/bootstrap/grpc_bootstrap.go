@@ -7,10 +7,11 @@ import (
 	"payment/internal/grpc/server"
 	"payment/internal/repositories"
 	"payment/internal/services"
+	"payment/pkg/core/kafka"
 	"strconv"
 )
 
-func StartGRPC(app *App) (*server.GRPCServer, error) {
+func StartGRPC(app *App, kafkaApp kafka.App) (*server.GRPCServer, error) {
 
 	grpcPort, err := strconv.Atoi(app.Config.GRPCPort)
 	if err != nil || grpcPort == 0 {
@@ -27,7 +28,7 @@ func StartGRPC(app *App) (*server.GRPCServer, error) {
 	newPgRepo := app.PGRepo
 
 	paymentRepo := repositories.NewPaymentRepository(newPgRepo)
-	paymentService := services.NewPaymentService(paymentRepo)
+	paymentService := services.NewPaymentService(paymentRepo, *kafkaApp.Producer)
 	handler := handlers.NewPaymentHandler(paymentService)
 
 	grpcServer := server.NewGRPCServer(handler, grpcAddr, httpAddr)

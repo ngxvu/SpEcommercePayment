@@ -18,6 +18,7 @@ import (
 
 func main() {
 	logger.Init(utils.APPNAME)
+	logger.SetupLogger()
 
 	// Initialize application
 	app, err := bootstrap.InitializeApp()
@@ -26,7 +27,8 @@ func main() {
 		return
 	}
 
-	logger.SetupLogger()
+	kafkaApp, stopKafka := bootstrap.InitKafka(context.Background())
+	defer stopKafka()
 
 	// Setup and start server
 	router := gin.Default()
@@ -48,7 +50,7 @@ func main() {
 		}
 	}()
 
-	grpcSrv, err := bootstrap.StartGRPC(app)
+	grpcSrv, err := bootstrap.StartGRPC(app, *kafkaApp)
 	if err != nil {
 		log.Fatalf("failed to start grpc: %v", err)
 	}

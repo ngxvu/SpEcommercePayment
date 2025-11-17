@@ -7,7 +7,7 @@ message PayRequest {
   string event_id = 1; // event identifier use for idempotency
   string order_id = 2;
   string customer_id = 3;
-  double  amount = 4;
+  double amount = 4;
   string status = 5;
 }
 

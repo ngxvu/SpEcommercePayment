@@ -61,3 +61,11 @@ func NewCreatePaymentResponse(p *Payment, md *utils.MetaData) *CreatePaymentResp
 		},
 	}
 }
+
+type PaymentEvent struct {
+	PaymentID      string  `json:"payment_id"`
+	OrderID        string  `json:"order_id"`
+	IdempotencyKey string  `json:"idempotency_key"`
+	Amount         float64 `json:"amount"`
+	Status         string  `json:"status"`
+}
